@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ResumeIQ — AI-Powered Resume Reviewer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar__mark">
+      <span class="topbar__scanline" aria-hidden="true"></span>
+      ResumeIQ
+    </div>
+    <div class="topbar__tag">RESUME · ANALYSIS · ATS</div>
+  </header>
+
+  <main class="stage">
+
+    <!-- ===================== UPLOAD SCREEN ===================== -->
+    <section id="screen-upload" class="screen screen--active">
+      <p class="eyebrow">STEP 01 / UPLOAD</p>
+      <h1 class="headline">Upload Your Resume.</h1>
+      <p class="subhead">Get an instant, structured read on how it reads to a human — and to the bots that screen it first.</p>
+
+      <form id="upload-form" class="dropzone" aria-label="Resume upload">
+        <input type="file" id="file-input" accept="application/pdf,.pdf" hidden />
+        <div class="dropzone__inner" id="dropzone-inner">
+          <div class="dropzone__icon" aria-hidden="true">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+              <path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <p class="dropzone__title">Drag &amp; drop your PDF here</p>
+          <p class="dropzone__or">or</p>
+          <button type="button" id="browse-btn" class="btn btn--primary">Choose a file</button>
+          <p class="dropzone__meta">ACCEPTED: PDF · MAX 5&nbsp;MB</p>
+        </div>
+
+        <div class="dropzone__file" id="file-chip" hidden>
+          <span class="dropzone__file-name" id="file-name"></span>
+          <button type="button" id="clear-file-btn" class="btn-icon" aria-label="Remove file">&times;</button>
+        </div>
+      </form>
+
+      <button type="button" id="analyze-btn" class="btn btn--submit" disabled>Analyze My Resume</button>
+
+      <div id="upload-progress" class="progress" hidden>
+        <div class="progress__bar" id="progress-bar"></div>
+        <p class="progress__label" id="progress-label">Uploading…</p>
+      </div>
+
+      <div id="upload-error" class="error-banner" role="alert" hidden>
+        <span id="upload-error-text"></span>
+        <button type="button" id="upload-retry-btn" class="btn btn--ghost">Try again</button>
+      </div>
+    </section>
+
+    <!-- ===================== LOADING SCREEN ===================== -->
+    <section id="screen-loading" class="screen">
+      <div class="scanner">
+        <div class="scanner__doc">
+          <div class="scanner__line" aria-hidden="true"></div>
+          <div class="scanner__row"></div>
+          <div class="scanner__row"></div>
+          <div class="scanner__row scanner__row--short"></div>
+          <div class="scanner__row"></div>
+          <div class="scanner__row scanner__row--short"></div>
+        </div>
+      </div>
+      <p class="scanner__label" id="scanner-label">Reading your resume…</p>
+
+      <div class="scanner__steps" id="scanner-steps" aria-hidden="true">
+        <span class="scanner__step is-active" data-step="0"></span>
+        <span class="scanner__step" data-step="1"></span>
+        <span class="scanner__step" data-step="2"></span>
+        <span class="scanner__step" data-step="3"></span>
+      </div>
+    </section>
+
+    <!-- ===================== RESULTS SCREEN ===================== -->
+    <section id="screen-results" class="screen">
+      <p class="eyebrow">STEP 02 / RESULTS</p>
+      <h1 class="headline headline--sm">Here's how it reads.</h1>
+
+      <div class="verdict-banner" id="verdict-banner" hidden>
+        <span class="verdict-banner__tag">VERDICT</span>
+        <p class="verdict-banner__text" id="verdict-text"></p>
+      </div>
+
+      <div class="score-panel" id="score-panel">
+        <div class="score-card score-card--resume">
+          <span class="score-card__ring" id="resume-score-ring" aria-hidden="true"></span>
+          <div class="score-card__text">
+            <span class="score-card__value" id="resume-score-value">–</span>
+            <span class="score-card__label">Resume Score</span>
+            <span class="score-card__hint">from Gemini analysis</span>
+          </div>
+        </div>
+        <div class="score-card score-card--ats">
+          <span class="score-card__ring" id="ats-score-ring" aria-hidden="true"></span>
+          <div class="score-card__text">
+            <span class="score-card__value" id="ats-score-value">–</span>
+            <span class="score-card__label">ATS Score</span>
+            <span class="score-card__hint">from Gemini analysis</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="results-toolbar">
+        <button type="button" id="copy-analysis-btn" class="btn btn--tool" disabled>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M5 15V5a2 2 0 0 1 2-2h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          Copy Analysis
+        </button>
+        <button type="button" id="download-pdf-btn" class="btn btn--tool" disabled>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Download PDF
+        </button>
+        <span class="results-toolbar__msg" id="toolbar-msg" aria-live="polite"></span>
+      </div>
+
+      <div class="results" id="results-container">
+
+        <article class="result-card result-card--summary" data-section="SUMMARY">
+          <header class="result-card__head">
+            <button type="button" class="result-card__toggle" data-target="section-summary" aria-expanded="true">
+              <span class="result-card__chip">SUMMARY</span>
+              <svg class="result-card__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </header>
+          <div class="result-card__body" id="section-summary">
+            <span class="typing-cursor"></span>
+          </div>
+        </article>
+
+        <article class="result-card result-card--strengths" data-section="STRENGTHS">
+          <header class="result-card__head">
+            <button type="button" class="result-card__toggle" data-target="section-strengths" aria-expanded="true">
+              <span class="result-card__chip">STRENGTHS</span>
+              <svg class="result-card__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </header>
+          <div class="result-card__body" id="section-strengths"></div>
+        </article>
+
+        <article class="result-card result-card--weaknesses" data-section="WEAKNESSES">
+          <header class="result-card__head">
+            <button type="button" class="result-card__toggle" data-target="section-weaknesses" aria-expanded="true">
+              <span class="result-card__chip">WEAKNESSES</span>
+              <svg class="result-card__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </header>
+          <div class="result-card__body" id="section-weaknesses"></div>
+        </article>
+
+        <article class="result-card result-card--missing" data-section="MISSING_SKILLS">
+          <header class="result-card__head">
+            <button type="button" class="result-card__toggle" data-target="section-missing" aria-expanded="true">
+              <span class="result-card__chip">MISSING SKILLS</span>
+              <svg class="result-card__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </header>
+          <div class="result-card__body" id="section-missing"></div>
+        </article>
+
+        <article class="result-card result-card--ats" data-section="ATS_SUGGESTIONS">
+          <header class="result-card__head">
+            <button type="button" class="result-card__toggle" data-target="section-ats" aria-expanded="true">
+              <span class="result-card__chip">ATS SUGGESTIONS</span>
+              <svg class="result-card__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </header>
+          <div class="result-card__body" id="section-ats"></div>
+        </article>
+
+      </div>
+
+      <div id="stream-error" class="error-banner" role="alert" hidden>
+        <span id="stream-error-text"></span>
+        <button type="button" id="stream-retry-btn" class="btn btn--ghost">Try again</button>
+      </div>
+
+      <button type="button" id="reset-btn" class="btn btn--primary btn--reset">Analyze Another Resume</button>
+    </section>
+
+  </main>
+
+  <!-- Client-side PDF generation only -- renders the analysis text that
+       the backend already streamed back; makes no network requests of
+       its own and triggers no additional Gemini calls. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
