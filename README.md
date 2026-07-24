@@ -46,3 +46,7 @@ pip install -r requirements.txt
 - OCR support for scanned resumes
 - User authentication
 
+## License
+
+This project was developed as part of the IBM SkillsBuild Capstone Project.
+
