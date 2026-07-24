@@ -4,15 +4,24 @@ ResumeIQ FastAPI backend.
 Endpoints (per PRD Section 9.3):
   POST /api/upload                        - accepts PDF, returns extraction status + session ID
   GET  /api/analyze/stream/{session_id}    - SSE stream of Gemini analysis
-  GET  /api/health                         - health check for App Runner
+  GET  /api/health                         - health check for App Runner / Elastic Beanstalk
+
+Frontend:
+  GET  /                                   - serves frontend/index.html
+  GET  /<static asset>                     - serves frontend/style.css, frontend/app.js, etc.
+  (Frontend is baked into the Docker image alongside the backend -- see
+  Dockerfile -- so the whole app is reachable from a single Elastic
+  Beanstalk URL.)
 """
 
 import time
 import uuid
+from pathlib import Path
 from typing import Dict
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.pdf_extractor import extract_text_from_pdf, PDFExtractionError
@@ -20,7 +29,10 @@ from app.gemini_client import stream_gemini_analysis, GeminiServiceError, NotARe
 
 app = FastAPI(title="ResumeIQ API", version="1.0.0")
 
-# Frontend is a static HTML/CSS/JS app that may be served separately.
+# CORS is left open (allow_origins=["*"]) even though the frontend is now
+# served from the same origin -- this keeps local development (frontend
+# opened directly / served by a different dev server) and any future
+# split-deployment working without changes.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -37,6 +49,31 @@ SESSION_TTL_SECONDS = 600  # stale session cleanup
 # Extracted text is held only in memory for the request lifecycle (Section 9.2).
 # No database is used for the MVP.
 SESSION_STORE: Dict[str, dict] = {}
+
+# Absolute path to the frontend directory, computed from this file's own
+# location rather than the process's current working directory -- this
+# keeps it correct regardless of how/where uvicorn is launched from.
+#
+# Two layouts need to resolve correctly:
+#   1. Inside the Docker image: main.py lives at <root>/app/main.py and the
+#      Dockerfile copies the frontend to <root>/frontend (sibling of "app"),
+#      i.e. one level up from this file.
+#   2. Local dev checkout: main.py lives at
+#      resumeiq/backend/app/main.py and the frontend lives at
+#      resumeiq/frontend, i.e. two levels up from this file (out of
+#      "backend" entirely).
+#
+# We try both candidates and use whichever actually exists, so the app runs
+# correctly in both environments without any code changes needed.
+_APP_DIR = Path(__file__).resolve().parent
+_CANDIDATE_FRONTEND_DIRS = [
+    _APP_DIR.parent / "frontend",          # Docker layout: <root>/frontend
+    _APP_DIR.parent.parent / "frontend",   # Local layout: resumeiq/frontend
+]
+FRONTEND_DIR = next(
+    (p for p in _CANDIDATE_FRONTEND_DIRS if p.is_dir()),
+    _CANDIDATE_FRONTEND_DIRS[0],  # fall back to original behavior if neither exists
+)
 
 
 def _cleanup_expired_sessions() -> None:
@@ -161,3 +198,18 @@ async def analyze_stream(session_id: str):
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Frontend serving
+# ---------------------------------------------------------------------------
+# IMPORTANT: this must come AFTER every /api/... route above. StaticFiles is
+# mounted at "/", which acts as a catch-all -- if it were registered first,
+# it would shadow the /api routes.
+
+@app.get("/")
+async def serve_frontend_index():
+    return FileResponse(str(FRONTEND_DIR / "index.html"))
+
+
+app.mount("/", StaticFiles(directory=str(FRONTEND_DIR)), name="frontend")

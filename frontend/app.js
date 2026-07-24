@@ -1,10 +1,10 @@
 /* ResumeIQ frontend logic.
  * Talks to: POST /api/upload, GET /api/analyze/stream/{session_id}
  * Set API_BASE_URL to your backend's origin if the frontend is hosted
- * separately from the FastAPI backend. Leave as "" if served from the
- * same origin.
+ * separately from the FastAPI backend. Left as "" because the frontend
+ * is now served by FastAPI itself (same origin) -- see main.py.
  */
-const API_BASE_URL = "http://127.0.0.1:8000";
+const API_BASE_URL = "";
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // FR-1.2
 
@@ -166,7 +166,14 @@ uploadRetryBtn.addEventListener("click", () => {
 });
 
 // ---------------- Upload + kick off analysis ----------------
-analyzeBtn.addEventListener("click", () => {
+analyzeBtn.addEventListener("click", (e) => {
+  // analyzeBtn is a <button> inside the #upload-form <form> element, so
+  // without this it defaults to type="submit" and triggers a native form
+  // submission (a GET navigation to the current page) at the same time as
+  // this handler's fetch() call. That navigation aborts the in-flight
+  // fetch before it reaches the network, which is why no POST /api/upload
+  // was ever showing up in the backend terminal.
+  e.preventDefault();
   if (!selectedFile) return;
   uploadResume(selectedFile);
 });
